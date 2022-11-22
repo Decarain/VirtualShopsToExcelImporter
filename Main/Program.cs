@@ -6,8 +6,20 @@ namespace Main
     {
         public static void Main()
         {
-            var shopReader = new ShopReader(Consts.mainPath);
-            shopReader.GetTitleModels("Amogus");
+            string[] titles;
+            using (var txtReader = new TxtStreamReaderHandler(Consts.txtPath))
+            {
+                titles = txtReader.GetTitles();
+            }
+
+            var shopReader = new ShopReader(Consts.webPath);
+            var data = new Dictionary<string, List<ShopModel>>();
+            foreach (var title in titles)
+            {
+                data[title] = shopReader.GetTitleModels(title);
+            }
+
+
         }
     }
 }

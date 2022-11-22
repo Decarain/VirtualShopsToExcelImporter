@@ -14,14 +14,17 @@ namespace Main
         public ShopReader(string path)
         {
             driver = new ChromeDriver();
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
+            //driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
             driver.Navigate().GoToUrl(path);
         }
 
-        public void GetTitleModels(string title)
+        public List<ShopModel> GetTitleModels(string title)
         {
-            var searchInput = driver.FindElement(By.XPath($"//*[contains(@class,'nav-element__search')]"));
+            WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+            wait.Until(x => x.FindElement(By.XPath($"//*[@class = 'header__nav-element nav-element']")));
+            var searchInput = driver.FindElement(By.XPath($"//button[contains(@class,'nav-element__search')]"));
             searchInput.Click();
+            
 
             //TODO Add waiter.
             searchInput = driver.FindElement(By.Id("mobileSearchInput"));
@@ -39,6 +42,8 @@ namespace Main
             {
                 models.Add(GetModel(link));
             }
+
+            return models;
         }
 
         private ShopModel GetModel(string path)
@@ -46,7 +51,7 @@ namespace Main
             driver.Navigate().GoToUrl(path);
             var title = driver.FindElement(By.ClassName("product-page__header")).Text;
 
-            var brand = driver.FindElement(By.XPath($"//*[@class='product-page__grid']//*[@class='seller-info']/div/div/div/a")).Text;
+            var brand = driver.FindElement(By.XPath($"//*[@class='product-page__grid']//*[@class='seller-info']/div/div/div")).Text;
 
             var id = driver.FindElement(By.Id("productNmId")).Text;
 
