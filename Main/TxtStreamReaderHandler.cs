@@ -1,10 +1,10 @@
 ﻿namespace Main
 {
-    public class TxtStreamReaderHandler : IDisposable
+    public class TxtReadHandler : IDisposable
     {
         StreamReader streamReader;
 
-        public TxtStreamReaderHandler(string path)
+        public TxtReadHandler(string path)
         {
             streamReader = new StreamReader(path);
         }

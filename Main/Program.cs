@@ -7,19 +7,24 @@ namespace Main
         public static void Main()
         {
             string[] titles;
-            using (var txtReader = new TxtStreamReaderHandler(Consts.txtPath))
+            using (var txtReader = new TxtReadHandler(Consts.txtPath))
             {
                 titles = txtReader.GetTitles();
             }
 
-            var shopReader = new ShopReader(Consts.webPath);
             var data = new Dictionary<string, List<ShopModel>>();
-            foreach (var title in titles)
+            using (var shopReader = new ShopReader(Consts.webPath))
             {
-                data[title] = shopReader.GetTitleModels(title);
+
+                foreach (var title in titles)
+                {
+                    data[title] = shopReader.GetTitleModels(title);
+                }
             }
 
-
+            var excelWriterHandler = new ExcelWriteHandler();
+            excelWriterHandler.SetShopModelValues(data);
+            excelWriterHandler.TrySave(Consts.xlsxPath);
         }
     }
 }

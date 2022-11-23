@@ -2,7 +2,10 @@
 using OpenQA.Selenium.Chrome;
 using System;
 using Main.Utilities;
+using OpenQA.Selenium.Support;
 using OpenQA.Selenium.Support.UI;
+using OpenQA.Selenium.Interactions;
+using System.Net.Http.Headers;
 
 namespace Main
 {
@@ -14,20 +17,16 @@ namespace Main
         public ShopReader(string path)
         {
             driver = new ChromeDriver();
-            //driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
+            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(5);
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5);
             driver.Navigate().GoToUrl(path);
+            driver.Manage().Window.Maximize();
+            Thread.Sleep(TimeSpan.FromSeconds(5)); //Unfortunately, I haven't find selenium working waiter alternative.
         }
 
         public List<ShopModel> GetTitleModels(string title)
         {
-            WebDriverWait wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
-            wait.Until(x => x.FindElement(By.XPath($"//*[@class = 'header__nav-element nav-element']")));
-            var searchInput = driver.FindElement(By.XPath($"//button[contains(@class,'nav-element__search')]"));
-            searchInput.Click();
-            
-
-            //TODO Add waiter.
-            searchInput = driver.FindElement(By.Id("mobileSearchInput"));
+            var searchInput = driver.FindElement(By.XPath($"//*[@class='search-catalog__block']/input"));
             searchInput.SendKeys(title);
             searchInput.SendKeys(Keys.Enter);
             driver.Navigate().Refresh();
@@ -40,7 +39,11 @@ namespace Main
             var models = new List<ShopModel>();
             foreach (var link in nonPromotionalProductsLinks)
             {
-                models.Add(GetModel(link));
+                var model = GetModel(link);
+                if (model != null)
+                {
+                    models.Add(model);
+                }
             }
 
             return models;
@@ -48,35 +51,49 @@ namespace Main
 
         private ShopModel GetModel(string path)
         {
-            driver.Navigate().GoToUrl(path);
-            var title = driver.FindElement(By.ClassName("product-page__header")).Text;
-
-            var brand = driver.FindElement(By.XPath($"//*[@class='product-page__grid']//*[@class='seller-info']/div/div/div")).Text;
-
-            var id = driver.FindElement(By.Id("productNmId")).Text;
-
-            var feedbacks = driver.FindElement(By.ClassName("product-review__count-review")).Text;
-
-            var priceBlock = driver.FindElements(By.XPath($"//*[@class='price-block__content']"))[0];
-            string price;
             try
             {
-                price = priceBlock.FindElement(By.XPath($".//*[contains(@class, 'price-block__old-price')]")).Text;
+                driver.Navigate().GoToUrl(path);
+                var title = driver.FindElement(By.ClassName("product-page__header")).Text;
+
+                var brand = driver.FindElement(By.XPath($"//*[@class='product-page__grid']//*[@class='seller-info']/div/div/div")).Text;
+
+                var id = driver.FindElement(By.Id("productNmId")).Text;
+
+                var feedbacks = driver.FindElement(By.ClassName("product-review__count-review")).Text;
+
+                var priceBlock = driver.FindElements(By.XPath($"//*[@class='price-block__content']"));
+                string price;
+                try
+                {
+                    price = priceBlock
+                        .Select(pr => pr.FindElement(By.XPath($".//*[contains(@class, 'price-block__old-price')]")).Text)
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .FirstOrDefault();
+                }
+                catch (OpenQA.Selenium.NoSuchElementException)
+                {
+                    price = priceBlock
+                        .Select(pr => pr.FindElement(By.ClassName($"price-block__final-price")).Text)
+                        .Where(t => !string.IsNullOrWhiteSpace(t))
+                        .FirstOrDefault();
+                }
+                var model = new ShopModel() { title = title, brand = brand, id = id, feedbacks = feedbacks, price = price };
+
+                FixFormat(model);
+                return model;
             }
             catch (OpenQA.Selenium.NoSuchElementException)
             {
-                price = priceBlock.FindElement(By.ClassName($"price-block__final-price")).Text;
+                return null;
             }
-            var model = new ShopModel() { title = title, brand = brand, id = id, feedbacks = feedbacks, price = price };
-
-            FixFormat(model);
-            return model;
         }
 
         public void FixFormat(ShopModel model)
         {
             model.title = new string(model.title.Where(ch => !char.IsControl(ch)).ToArray());
-            model.feedbacks = model.feedbacks.Split(" ")[0];
+            model.price = new string(model.price.Where(ch => char.IsDigit(ch)).ToArray());
+            model.feedbacks = new string(model.feedbacks.Where(ch => char.IsDigit(ch)).ToArray());
         }
 
         public void Dispose()
